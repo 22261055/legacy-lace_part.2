@@ -113,12 +113,13 @@ let absorbPrepared = false;
 let pg; // starfield buffer (p5.Graphics)
 
 function drawConvergeScene(){
-  // 속도 제어
   if (cState === NORMAL) speed = map(mouseX, 0, width, 4, 18);
 
-  // 별 그리기
-  pg.beginDraw(); pg.clear(); pg.blendMode(ADD);
-  pg.push(); pg.translate(width/2, height/2);
+  // ★ beginDraw/endDraw 없이 사용
+  pg.clear();
+  pg.blendMode(ADD);
+  pg.push();
+  pg.translate(width/2, height/2);
 
   if (cState===NORMAL || cState===CIRCLE_ENTER || cState===CIRCLE_HOLD1){
     for (const s of stars){ s.update(speed); s.displayPG(pg); s.cacheScreen(); }
@@ -146,10 +147,9 @@ function drawConvergeScene(){
     for (const s of stars) pg.ellipse(s.fx, s.fy, 3, 3);
   }
 
-  pg.pop(); pg.endDraw();
+  pg.pop();
   image(pg,0,0);
 
-  // 중앙 빛/원
   drawSoftGlowCircle();
   updateCStateMachine();
 }
@@ -302,13 +302,13 @@ function setupLegacy(){
 
   textPGSize = int(Math.min(width, height) * 0.55);
   textPG = createGraphics(textPGSize, textPGSize);
-  textPG.beginDraw(); textPG.background(0,0); textPG.fill(255);
-  textPG.textAlign(CENTER,CENTER); textPG.textFont(legacyFontName);
+  textPG.clear();
+  textPG.fill(255);
+  textPG.textAlign(CENTER,CENTER);
+  textPG.textFont(legacyFontName);
   textPG.textSize(textPGSize*0.13);
   textPG.text(legacyText, textPG.width/2, textPG.height/2);
-  textPG.endDraw();
 
-  // 안전한 알파 판정: 픽셀 배열로 확인
   textPG.loadPixels();
   for (let y=0; y<textPG.height; y+=textSampleStep){
     for (let x=0; x<textPG.width; x+=textSampleStep){
@@ -414,7 +414,6 @@ let TEXT_MASK_RADIUS = 0.80;
 let TEXT_SKIP_PERCENT = 45;
 
 function setupPlanetV2(){
-  // 내부 파티클 분포
   vpBase  = new Array(VP_COUNT);
   vpPhase = new Array(VP_COUNT);
   vpBright= new Array(VP_COUNT);
@@ -450,7 +449,6 @@ function setupPlanetV2(){
     i++;
   }
 
-  // 궤도 반경
   ORBIT_COUNT = 5;
   orbitR = new Array(ORBIT_COUNT);
   const rMin = R * 1.4;
@@ -460,11 +458,9 @@ function setupPlanetV2(){
     orbitR[k] = lerp(rMin, rMax, t);
   }
 
-  // 배경 별
   bgStars = new Array(BG_COUNT);
   for (let b=0;b<BG_COUNT;b++) bgStars[b]=new StarBG();
 
-  // 눈꽃 텍스트 포인트
   snowPoints.length=0;
   textMaskPG.loadPixels();
   for (let y=0;y<textMaskPG.height;y+=3){
@@ -483,14 +479,12 @@ function setupPlanetV2(){
   }
 }
 function drawPlanetScene(){
-  // 마우스 이동량 → 구체 회전 가속
   const mv = dist(mouseX,mouseY,pmouseX,pmouseY);
   const boost = map(mv, 0, 40, 0.0, 1.6);
   pRX += pBaseX*(1.0+0.6*boost);
   pRY += pBaseY*(1.0+1.0*boost);
   orbitSpin += orbitSpinSpeed;
 
-  // 배경 글로우 + 별
   blendMode(ADD);
   imageMode(CENTER);
   tint(255,70); image(glowSprite, width*0.50, height*0.50, Math.max(width,height)*1.2, Math.max(width,height)*1.2);
@@ -498,11 +492,9 @@ function drawPlanetScene(){
   noTint();
   for (const s of bgStars){ s.update(); s.display(); }
 
-  // 중심 좌표계
   push();
   translate(width/2, height/2);
 
-  // 궤도(고정)
   push();
   rotate(orbitSpin);
   scale(1.0, orbitTilt);
@@ -510,7 +502,6 @@ function drawPlanetScene(){
   for (let i=0;i<ORBIT_COUNT;i++){ const r=orbitR[i]; ellipse(0,0,r*2,r*2); }
   pop();
 
-  // 내부 파티클
   const t = millis()*0.001*vpFloatFreq;
   const f = width*0.9;
   noStroke(); blendMode(ADD);
@@ -529,12 +520,9 @@ function drawPlanetScene(){
     fill(255, a*0.18); ellipse(sx,sy, sz*1.8, sz*1.8);
   }
 
-  // 와이어 구
   stroke(255,60); noFill(); drawWireSphere(R, DETAIL, pRX, pRY, 0);
-
   pop();
 
-  // 중앙 텍스트 눈꽃
   drawSnowText();
 }
 function drawSnowText(){
@@ -608,21 +596,22 @@ function easeInCubic (t){ return t*t*t; }
 
 // =================== GLOW SPRITE ========================
 function buildGlowSprite(S){
-  glowSprite = createGraphics(S,S);
-  glowSprite.beginDraw(); glowSprite.loadPixels();
-  const cx=(S-1)*0.5, cy=(S-1)*0.5, maxR=Math.min(cx,cy), power=2.6;
+  glowSprite = createGraphics(S, S);
+  // beginDraw/endDraw 없이 직접 픽셀 작성
+  glowSprite.loadPixels();
+  const cx = (S-1)*0.5, cy = (S-1)*0.5, maxR = Math.min(cx, cy), power = 2.6;
   for(let y=0;y<S;y++){
     for(let x=0;x<S;x++){
       const dx=x-cx, dy=y-cy, r=constrain(Math.hypot(dx,dy)/maxR,0,1);
       const a=Math.pow(1.0-r,power);
       const idx=(y*S+x)*4;
-      glowSprite.pixels[idx]=255;
-      glowSprite.pixels[idx+1]=255;
-      glowSprite.pixels[idx+2]=255;
-      glowSprite.pixels[idx+3]=int(255*a);
+      glowSprite.pixels[idx]   = 255;
+      glowSprite.pixels[idx+1] = 255;
+      glowSprite.pixels[idx+2] = 255;
+      glowSprite.pixels[idx+3] = int(255*a);
     }
   }
-  glowSprite.updatePixels(); glowSprite.endDraw();
+  glowSprite.updatePixels();
 }
 
 // =================== STAR / BG STAR =====================
@@ -676,12 +665,10 @@ function setup(){
   // Genesis
   setupGenesis();
 
-  // Legacy (지연 초기화)
-  // Planet 텍스트 마스크 먼저
+  // Legacy / Planet 준비
   buildTextMask();
   setupPlanetV2();
 
-  // Subtitles
   buildSubtitles();
   resetSubtitles();
 
@@ -701,7 +688,6 @@ function draw(){
 function windowResized(){
   if (USE_FULLSCREEN){
     resizeCanvas(windowWidth, windowHeight);
-    // 주요 버퍼/반지름 재계산
     safeResetToStart(true);
   }
 }
@@ -721,7 +707,7 @@ function keyPressed(){
   }
   if (key==='r' || key==='R'){
     scene=0;
-    safeResetToStart(false);  // ★ 안전 리셋
+    safeResetToStart(false);
   }
 }
 
@@ -729,33 +715,23 @@ function keyPressed(){
 function buildTextMask(){
   textMaskSize = int(Math.min(width, height) * 0.55);
   textMaskPG   = createGraphics(textMaskSize, textMaskSize);
-  textMaskPG.beginDraw();
-  textMaskPG.background(0,0);
-  textMaskPG.fill(255); textMaskPG.textAlign(CENTER,CENTER);
+  textMaskPG.clear();
+  textMaskPG.fill(255);
+  textMaskPG.textAlign(CENTER,CENTER);
   textMaskPG.textFont(legacyFontName);
   textMaskPG.textSize(textMaskSize*0.13*TEXT_MASK_SCALE);
   textMaskPG.text(legacyText, textMaskPG.width/2, textMaskPG.height/2);
-  textMaskPG.endDraw();
 }
 
 // =================== SAFE RESET ========================
 function safeResetToStart(fromResize){
-  // 1) 공통 렌더 상태 초기화
-  blendMode(BLEND);
-  imageMode(CORNER);
-  rectMode(CORNER);
-  noStroke();
-  noTint();
+  blendMode(BLEND); imageMode(CORNER); rectMode(CORNER); noStroke(); noTint();
 
-  // 2) 반지름/버퍼 재설정
   R = Math.min(width, height) * 0.28;
 
-  if (!pg || pg.width !== width || pg.height !== height) {
-    pg = createGraphics(width, height);
-  }
-  pg.beginDraw(); pg.blendMode(BLEND); pg.clear(); pg.endDraw();
+  if (!pg || pg.width !== width || pg.height !== height) pg = createGraphics(width, height);
+  pg.clear();
 
-  // 3) Converge 상태머신/이펙트 좌표 리셋
   cState = NORMAL;
   cStateStart = millis();
   circleX = width * 0.5;
@@ -765,25 +741,22 @@ function safeResetToStart(fromResize){
   effectPrepared = false;
   absorbPrepared = false;
 
-  // 4) 별들 재시드
   if (!stars || stars.length !== starCount) stars = new Array(starCount);
   for (let i = 0; i < stars.length; i++) { if (!stars[i]) stars[i] = new Star(); else stars[i].reset(); }
 
-  // 5) 다른 씬 런타임 상태 초기화
   if (trails) trails.length=0;
   sphereRotX = sphereRotY = sphereRotZ = 0;
   pRX = pRY = 0;
 
-  // 6) 자막 초기화(수렴 그룹부터)
   curSubGroup = SUB_G_CONVERGE;
   resetSubtitles();
 
-  // 7) Planet용 텍스트 마스크/포인트 재생성 (리사이즈 때)
   if (fromResize){
     buildTextMask();
     setupPlanetV2();
-    legacyInited=false; // Legacy는 다시 생성되도록
+    legacyInited=false; // Legacy는 resize 후 다시 생성
   }
 
   background(0);
 }
+
